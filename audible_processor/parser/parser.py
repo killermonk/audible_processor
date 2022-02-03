@@ -3,12 +3,11 @@ import os
 import pathlib
 from dataclasses import dataclass
 from logging import Logger
+from parser.audible_tools import AudibleTools
 from sqlite3 import InternalError
 from typing import List
 
 import ffmpeg
-
-from src.audible_tools import AudibleTools
 
 SUPPORTED_INPUT_TYPES = ['aax', 'aac', 'm4b']
 
@@ -186,6 +185,18 @@ class Parser:
             raise Exception('Could not find a checksum for \'{}\''.format(self.config.input_file))
 
     def _format_audio(self, meta: MetaData, outdir: str):
+        self.logger.warn('Saving mp3s to {}'.format(outdir))
+
+        capture_output = False if self.logger.isEnabledFor(logging.DEBUG) else True
+
+        self.logger.debug('Extracting cover art')
+        (
+            ffmpeg
+                .input(self.config.input_file, y=None, activation_bytes=meta.activation_bytes)
+                .output(os.path.join(outdir, 'cover.jpg'), an=None, vcodec='copy')
+                .run(capture_stdout=capture_output, capture_stderr=capture_output)
+        )
+
         # Run a parse command for each chapter
         num_chapters = len(meta.chapters)
 
@@ -212,6 +223,7 @@ class Parser:
                 'ss': chapter.start,
                 'to': chapter.end,
                 'map_metadata': 0,
+                'map_chapters': -1,
                 'id3v2_version': 3,
                 'metadata:g:0': 'title={}'.format(chapter.title),
                 'metadata:g:1': 'track={}'.format(track),
@@ -219,9 +231,12 @@ class Parser:
                 'metadata:g:3': 'artist={}'.format(meta.author),
             }
 
+            outfile = os.path.join(outdir, filename)
+            self.logger.debug('Saving chapter to {}'.format(outfile))
+
             (
                 ffmpeg
                     .input(self.config.input_file, **input_args)
-                    .output(os.path.join(outdir, filename), **output_args)
-                    .run(capture_stdout=True, capture_stderr=True)
+                    .output(outfile, **output_args)
+                    .run(capture_stdout=capture_output, capture_stderr=capture_output)
             )

@@ -1,31 +1,10 @@
 import argparse
-import logging
 import sys
 from array import array
+from parser.parser import Parser, ParserConfig
 
-from src.parser import Parser, ParserConfig
+from helpers import get_logger
 
-
-def _get_logger(verbosity: int) -> logging.Logger:
-    if verbosity == 0:
-        log_level = logging.WARNING
-        formatter = logging.Formatter('%(message)s')
-    elif verbosity == 1:
-        log_level = logging.INFO
-        formatter = logging.Formatter('%(levelname)s - %(message)s')
-    elif verbosity >= 2:
-        log_level = logging.DEBUG
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-    handler = logging.StreamHandler()
-    handler.setLevel(log_level)
-    handler.setFormatter(formatter)
-
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
-
-    return logger
 
 def main(prog: str, args: array):
     parser = argparse.ArgumentParser(prog=prog, description='Convert an audiobook into chapterized mp3s')
@@ -39,17 +18,17 @@ def main(prog: str, args: array):
         help='Override the book title name for the output folders')
     parser.add_argument('--title-dir', default=True, action=argparse.BooleanOptionalAction,
         help='Whether or not to create a book title directory for the mp3 files')
-    parser.add_argument('-v', '--verbose', default=0, action='count')
     parser.add_argument('-f', '--force', default=False, action='store_true',
         help='Force the parsing to continue if a recoverable error is encountered')
     parser.add_argument('-b', '--activation-bytes',
         help='The activation bytes used to decrypt audible DRM. Automatic probe if not passed.')
+    parser.add_argument('-v', '--verbose', default=0, action='count')
     parser.add_argument('file', nargs='+', action='extend',
         help='The file that we are going to convert')
 
     options = parser.parse_args(args)
 
-    logger = _get_logger(options.verbose)
+    logger = get_logger(__name__, options.verbose)
 
     for file in options.file:
         config = ParserConfig(

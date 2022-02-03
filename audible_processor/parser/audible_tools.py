@@ -1,8 +1,8 @@
 import json
-from urllib.error import HTTPError
 import urllib.request
 from dataclasses import dataclass
 from logging import Logger
+from urllib.error import HTTPError
 
 BASE_URL = 'https://aax.api.j-kit.me/api/v2/activation'
 
