@@ -9,8 +9,6 @@ from monitor.daemon import Daemon
 
 
 def main(prog: str, args: array):
-    mp.set_start_method('fork')
-
     parser = argparse.ArgumentParser(prog=prog, description='Monitor a directory for new files and triggers mp3 conversion when found')
     parser.add_argument('-o', '--out', default='',
         help='The base path for the output directory for the mp3s')

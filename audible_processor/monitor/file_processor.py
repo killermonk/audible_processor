@@ -11,7 +11,7 @@ from typing import Any, Dict
 
 from monitor.config import DaemonConfig
 
-STATE_FILE = 'processor.ini'
+STATE_FILE = '.books.ini'
 
 class FileStatus(Enum):
     DISCOVERED = 1
@@ -26,44 +26,53 @@ def atomic_lock(lock: mp.Lock):
     finally:
         lock.release()
 
-def _load_state() -> configparser.ConfigParser:
-    config = configparser.ConfigParser()
-    config.read(STATE_FILE)
-    return config
+class StateManager:
+    lock: mp.Lock
+    _path: str
 
-def _get_state(path: str) -> Dict[str, Any]:
-    state = _load_state()
-    abs_path = os.path.abspath(path)
-    return state[abs_path] if state.has_section(abs_path) else {}
+    def __init__(self, output_dir: str, lock: mp.Lock) -> None:
+        self.lock = lock
+        self._path = os.path.join(output_dir, STATE_FILE)
 
-def _update_state(lock: mp.Lock, path: str, **kwargs):
-    abs_path = os.path.abspath(path)
-    with atomic_lock(lock):
-        state = _load_state()
-        if state.has_section(abs_path):
-            state[abs_path] = { **state[abs_path], **kwargs }
-        else:
-            state[abs_path] = kwargs
-        _save_state(state)
+    def _load_state(self):
+        config = configparser.ConfigParser()
+        config.read(self._path)
+        return config
 
-def _save_state(state: configparser.ConfigParser):
-    with open(STATE_FILE, 'w') as file:
-        state.write(file)
+    def _save_state(self, state: configparser.ConfigParser):
+        with open(self._path, 'w') as file:
+            state.write(file)
 
-def file_processor(config: DaemonConfig, queue: mp.Queue, lock: mp.Lock):
-    print('creating logger')
+    def get_state(self, path: str) -> Dict[str, Any]:
+        state = self._load_state()
+        abs_path = os.path.abspath(path)
+        return state[abs_path] if state.has_section(abs_path) else {}
+
+    def update_state(self, path: str, **kwargs):
+        abs_path = os.path.abspath(path)
+        with atomic_lock(self.lock):
+            state = self._load_state()
+            if state.has_section(abs_path):
+                state[abs_path] = { **state[abs_path], **kwargs }
+            else:
+                state[abs_path] = kwargs
+            self._save_state(state)
+
+def file_processor(config: DaemonConfig, queue: mp.Queue, lock: mp.Lock, log_level: int = logging.DEBUG):
     logger = logging.getLogger('monitor:file_processor')
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(log_level)
+
+    manager = StateManager(config.output_dir, lock)
 
     def should_process_file(file: str) -> bool:
         """Determine if we should process the given file"""
-        # Check if file has already been processed
-        state = _get_state(file)
-        return False if state.get('status', None) == FileStatus.PROCESSED else True
+        state = manager.get_state(file)
+        return False if state.get('status', None) == str(FileStatus.PROCESSED) else True
 
     def process_file(file: str):
+        """Do the work to initialize and run the Processor"""
         logger.debug('Updating state to discovered for \'{}\''.format(file))
-        _update_state(lock, file, status=FileStatus.DISCOVERED, last_updated=datetime.now())
+        manager.update_state(file, status=FileStatus.DISCOVERED, start_date=datetime.now())
 
         parser_config = ParserConfig(
             input_file=file,
@@ -77,12 +86,11 @@ def file_processor(config: DaemonConfig, queue: mp.Queue, lock: mp.Lock):
         )
 
         try:
-            # Parser(parser_config, logger).run()
-            raise Exception("cannot process")
-            _update_state(lock, file, status=FileStatus.PROCESSED, last_updated=datetime.now())
+            Parser(parser_config, logger).run()
+            manager.update_state(file, status=FileStatus.PROCESSED, end_date=datetime.now())
         except Exception as e:
             logger.error(e)
-            _update_state(lock, file, status=FileStatus.ERROR, last_updated=datetime.now())
+            manager.update_state(file, status=FileStatus.ERROR, end_date=datetime.now())
 
     """Worker function to process a file"""
     try:

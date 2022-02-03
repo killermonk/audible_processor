@@ -49,8 +49,9 @@ class Daemon:
                 observer.join()
 
             if processor and processor.is_alive():
-                processor.close()
+                processor.terminate()
                 processor.join()
+                processor.close()
 
     def _get_on_create_handler(self):
         def on_create(event):
@@ -92,7 +93,7 @@ class Daemon:
         self.logger.info('Starting file processor')
 
         lock = mp.Lock()
-        p = mp.Process(target=file_processor, args=(self.config, self._queue, lock))
+        p = mp.Process(target=file_processor, args=(self.config, self._queue, lock, self.logger.level))
         p.start()
 
         return p

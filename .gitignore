@@ -134,4 +134,4 @@ dmypy.json
 # Local testing files
 in/*
 out/*
-processor.ini
+.books.ini

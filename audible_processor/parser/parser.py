@@ -4,6 +4,7 @@ import pathlib
 from dataclasses import dataclass
 from logging import Logger
 from parser.audible_tools import AudibleTools
+from pathvalidate import sanitize_filepath
 from sqlite3 import InternalError
 from typing import List
 
@@ -106,7 +107,7 @@ class Parser:
             raise PermissionError('\'{}\' is not writable'.format(output))
 
         def join_path(dir: str) -> pathlib.Path:
-            new_out = output.joinpath(dir)
+            new_out = output.joinpath(sanitize_filepath(dir))
             # if it doesn't exist, create it
             self.logger.debug('Checking if \'{}\' exists'.format(new_out))
             if not new_out.exists():
@@ -240,3 +241,5 @@ class Parser:
                     .output(outfile, **output_args)
                     .run(capture_stdout=capture_output, capture_stderr=capture_output)
             )
+
+        self.logger.warn('Done')
