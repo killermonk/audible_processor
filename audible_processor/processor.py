@@ -1,10 +1,16 @@
 import argparse
 import sys
 from array import array
+from glob import glob
 from parser.parser import Parser, ParserConfig
 
 from helpers import get_logger
 
+
+def file_generator(files):
+    for path in files:
+        for f in glob(path):
+            yield f
 
 def main(prog: str, args: array):
     parser = argparse.ArgumentParser(prog=prog, description='Convert an audiobook into chapterized mp3s')
@@ -30,7 +36,7 @@ def main(prog: str, args: array):
 
     logger = get_logger(__name__, options.verbose)
 
-    for file in options.file:
+    for file in file_generator(options.file):
         config = ParserConfig(
             activation_bytes=options.activation_bytes,
             input_file=file,
