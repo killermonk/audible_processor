@@ -3,6 +3,7 @@ import os.path
 import time
 from logging import Logger
 from os import walk
+from typing import List
 
 from watchdog.events import RegexMatchingEventHandler
 from watchdog.observers import Observer
@@ -10,6 +11,27 @@ from watchdog.observers import Observer
 from monitor.config import DaemonConfig
 from monitor.file_processor import file_processor
 
+class ProcessPool:
+    """Helper class to start multiple processes"""
+    _pool: List[mp.Process]
+
+    def __init__(self, size, target=None, name=None, daemon=None, args=(), kwargs={}) -> None:
+        self._pool = [mp.Process(target=target, name=name, daemon=daemon, args=args, kwargs=kwargs) for _ in range(size)]
+
+    def start(self):
+        for p in self._pool: p.start()
+
+    def close(self):
+        for p in self._pool: p.close()
+
+    def terminate(self):
+        for p in self._pool: p.terminate()
+
+    def join(self):
+        for p in self._pool: p.join()
+
+    def is_alive(self):
+        return all(p.is_alive() for p in self._pool)
 
 class Daemon:
     """Class to monitor a directory and parse any files in it"""
@@ -80,6 +102,8 @@ class Daemon:
         )
 
         event_handler.on_created = self._get_on_create_handler()
+        event_handler.on_modified = lambda e: self.logger.info('modified {}'.format(e.src_path))
+        event_handler.on_any_event = lambda e: self.logger.info('event {}-{}'.format(e.event_type, e.src_path))
 
         observer = Observer()
         observer.schedule(event_handler, path, recursive=True)
@@ -89,14 +113,17 @@ class Daemon:
 
         return observer
 
-    def _start_file_processor(self) -> mp.Process:
+    def _start_file_processor(self) -> ProcessPool:
         self.logger.info('Starting file processor')
 
         lock = mp.Lock()
-        p = mp.Process(target=file_processor, args=(self.config, self._queue, lock, self.logger.level))
-        p.start()
+        pool = ProcessPool(
+            self.config.threads,
+            target=file_processor,
+            args=(self.config, self._queue, lock, self.logger.level))
 
-        return p
+        pool.start()
+        return pool
 
     def _queue_existing_files(self, path: str):
         for (dirpath, _, filenames) in walk(path):

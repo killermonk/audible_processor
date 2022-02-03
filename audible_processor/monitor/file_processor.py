@@ -18,6 +18,14 @@ class FileStatus(Enum):
     ERROR = 2
     PROCESSED = 5
 
+class LogPrefixAdapter(logging.LoggerAdapter):
+    def __init__(self, prefix: str, logger: logging.Logger, extra=None):
+        self._prefix = prefix
+        super().__init__(logger, extra)
+
+    def process(self, msg, kwargs):
+        return '{}{}'.format(self._prefix, msg), kwargs
+
 @contextmanager
 def atomic_lock(lock: mp.Lock):
     lock.acquire()
@@ -25,6 +33,9 @@ def atomic_lock(lock: mp.Lock):
         yield
     finally:
         lock.release()
+
+def str_truncate(s: str, to_len: int, suffix: str = '...'):
+    return s if len(s) <= to_len + len(suffix) else '{}{}'.format(s[:to_len], suffix)
 
 class StateManager:
     lock: mp.Lock
@@ -74,6 +85,11 @@ def file_processor(config: DaemonConfig, queue: mp.Queue, lock: mp.Lock, log_lev
         logger.debug('Updating state to discovered for \'{}\''.format(file))
         manager.update_state(file, status=FileStatus.DISCOVERED, start_date=datetime.now())
 
+        # Make a new logger to use for this processor
+        basename = os.path.basename(file)
+        prefix = str_truncate(basename, 10)
+        sub_logger = LogPrefixAdapter('{}-'.format(prefix), logger)
+
         parser_config = ParserConfig(
             input_file=file,
             output_dir=config.output_dir,
@@ -86,7 +102,7 @@ def file_processor(config: DaemonConfig, queue: mp.Queue, lock: mp.Lock, log_lev
         )
 
         try:
-            Parser(parser_config, logger).run()
+            Parser(config=parser_config, logger=sub_logger).run()
             manager.update_state(file, status=FileStatus.PROCESSED, end_date=datetime.now())
         except Exception as e:
             logger.error(e)

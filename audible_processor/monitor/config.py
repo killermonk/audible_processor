@@ -7,3 +7,4 @@ class DaemonConfig:
     output_dir: str
     create_author_dir: bool
     create_title_dir: bool
+    threads: int

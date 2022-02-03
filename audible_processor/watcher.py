@@ -18,6 +18,8 @@ def main(prog: str, args: array):
         help='Whether or not to create a book title directory for the mp3 files')
     parser.add_argument('-b', '--activation-bytes',
         help='The activation bytes used to decrypt audible DRM. Automatic probe if not passed.')
+    parser.add_argument('-t', '--threads', default=1, type=int,
+        help='The number of processors.')
     parser.add_argument('-v', '--verbose', default=0, action='count')
     parser.add_argument('path',
         help='The directory that we are going to monitor')
@@ -31,12 +33,13 @@ def main(prog: str, args: array):
         output_dir=options.out,
         create_author_dir=options.author_dir,
         create_title_dir=options.title_dir,
+        threads=options.threads,
     )
 
     try:
         Daemon(config=config, logger=logger).run(options.path)
     except Exception as e:
-        logger.error(e)
+        logger.exception(e)
 
 if __name__ == '__main__':
     main(sys.argv[0], sys.argv[1:])
