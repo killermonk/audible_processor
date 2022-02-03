@@ -102,8 +102,6 @@ class Daemon:
         )
 
         event_handler.on_created = self._get_on_create_handler()
-        event_handler.on_modified = lambda e: self.logger.info('modified {}'.format(e.src_path))
-        event_handler.on_any_event = lambda e: self.logger.info('event {}-{}'.format(e.event_type, e.src_path))
 
         observer = Observer()
         observer.schedule(event_handler, path, recursive=True)
