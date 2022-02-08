@@ -22,9 +22,9 @@ class AudibleTools:
         self.logger.debug('Fetching activation bytes from {}'.format(url))
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req) as response:
-            self.logger.debug('API Response: {}'.format(response))
-
             data = json.load(response)
+            self.logger.debug('API Response: {}'.format(data))
+
             if data['success']:
                 bytes = data['activationBytes']
                 self.logger.debug('Activation Bytes: {}'.format(bytes))
