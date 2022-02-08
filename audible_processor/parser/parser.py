@@ -52,9 +52,6 @@ def _get_file_ext(path):
 def _get_file_name(path):
     return pathlib.Path(path).stem
 
-def _bytes_to_hex(bytes):
-    return ''.join(hex(b)[2:] for b in bytes)
-
 @dataclass
 class Parser:
     """Class for handling the parsing of an audiobook file"""
@@ -175,9 +172,9 @@ class Parser:
         # Get the checksum
         checksum = None
         with open(self.config.input_file, 'rb') as f:
-            header = f.read(673)
             # Checksum is the bytes from 653->673
-            checksum = _bytes_to_hex(header[653:])
+            f.seek(653)
+            checksum = f.read(20).hex()
 
         if checksum:
             self.logger.debug('Calculated checksum \'{}\''.format(checksum))

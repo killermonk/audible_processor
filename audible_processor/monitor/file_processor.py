@@ -106,7 +106,7 @@ def file_processor(config: DaemonConfig, queue: mp.Queue, lock: mp.Lock, log_lev
             manager.update_state(file, status=FileStatus.PROCESSED, end_date=datetime.now())
         except Exception as e:
             logger.error(e)
-            manager.update_state(file, status=FileStatus.ERROR, end_date=datetime.now())
+            manager.update_state(file, status=FileStatus.ERROR, error=str(e), end_date=datetime.now())
 
     """Worker function to process a file"""
     try:
