@@ -175,7 +175,7 @@ class Parser:
             f.seek(653)
             checksum = f.read(20).hex()
 
-        if checksum:
+        if checksum and checksum != '0000000000000000000000000000000000000000':
             self.logger.debug('Calculated checksum \'{}\''.format(checksum))
             return AudibleTools(logger=self.logger).get_activation_bytes(checksum)
         else:
