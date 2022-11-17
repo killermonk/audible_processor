@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from logging import Logger
 from parser.audible_tools import AudibleTools
 from pathvalidate import sanitize_filepath
-from sqlite3 import InternalError
 from typing import List
 
 import ffmpeg
@@ -151,7 +150,7 @@ class Parser:
             if self.logger.isEnabledFor(logging.DEBUG):
                 self.logger.exception(e)
 
-            raise InternalError('Unable to probe for metadata. Please ensure ffmpeg and ffprobe are installed and on the path.', e)
+            raise Exception('Unable to probe for metadata. Please ensure ffmpeg and ffprobe are installed and on the path.') from e
 
         # If we don't have activation bytes passed in, try to find them
         activation_bytes = self.config.activation_bytes

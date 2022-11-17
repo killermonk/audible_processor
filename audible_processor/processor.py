@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 from array import array
 from glob import glob
@@ -51,7 +52,10 @@ def main(prog: str, args: array):
         try:
             Parser(config=config, logger=logger).run()
         except Exception as e:
-            logger.error(e)
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.exception(e)
+            else:
+                logger.error(e)
 
 if __name__ == '__main__':
     main(sys.argv[0], sys.argv[1:])

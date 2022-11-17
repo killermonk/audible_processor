@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from logging import Logger
 from urllib.error import HTTPError
 
-BASE_URL = 'https://aax.api.j-kit.me/api/v2/activation'
+# They added reCaptcha so this no longer works
+BASE_URL = 'https://api.audible-converter.ml/api/v2/activation'
 
 @dataclass
 class AudibleTools:
@@ -21,13 +22,16 @@ class AudibleTools:
 
         self.logger.debug('Fetching activation bytes from {}'.format(url))
         req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req) as response:
-            data = json.load(response)
-            self.logger.debug('API Response: {}'.format(data))
+        try:
+            with urllib.request.urlopen(req) as response:
+                data = json.load(response)
+                self.logger.debug('API Response: {}'.format(data))
 
-            if data['success']:
-                bytes = data['activationBytes']
-                self.logger.debug('Activation Bytes: {}'.format(bytes))
-                return bytes
-            else:
-                raise HTTPError(url, 500, "API failure", {}, None)
+                if data['success']:
+                    bytes = data['activationBytes']
+                    self.logger.debug('Activation Bytes: {}'.format(bytes))
+                    return bytes
+                else:
+                    raise HTTPError(url, 500, "API failure", {}, None)
+        except Exception as e:
+            raise Exception('Failed to fetch activation bytes: {}'.format(str(e))) from e
