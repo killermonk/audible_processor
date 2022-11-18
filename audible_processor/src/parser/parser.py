@@ -1,14 +1,14 @@
+import ffmpeg
 import logging
 import os
 import pathlib
+from pathvalidate import sanitize_filepath
 from dataclasses import dataclass
 from logging import Logger
-from parser.audible_tools import AudibleTools
-from pathvalidate import sanitize_filepath
-from sqlite3 import InternalError
 from typing import List
 
-import ffmpeg
+from src import AudibleTools
+
 
 SUPPORTED_INPUT_TYPES = ['aax', 'aac', 'm4b']
 
@@ -57,16 +57,23 @@ class Parser:
     """Class for handling the parsing of an audiobook file"""
     config: ParserConfig
     logger: Logger
+    audible: AudibleTools
 
     def run(self):
         self.logger.warn('Processing %s...', self.config.input_file)
 
+        self._validate_activation_bytes()
         self._validate_input_file()
         meta = self._probe_meta()
 
         output_dir = self._validate_output_dir(meta)
 
         self._format_audio(meta, output_dir)
+
+    def _validate_activation_bytes(self):
+        self.activation_bytes = self.config.activation_bytes or self.audible.get_activation_bytes()
+        if self.activation_bytes is None:
+            raise Exception('Activation bytes not found')
 
     def _validate_input_file(self):
         """Validate that the input file is valid"""
@@ -151,36 +158,14 @@ class Parser:
             if self.logger.isEnabledFor(logging.DEBUG):
                 self.logger.exception(e)
 
-            raise InternalError('Unable to probe for metadata. Please ensure ffmpeg and ffprobe are installed and on the path.', e)
-
-        # If we don't have activation bytes passed in, try to find them
-        activation_bytes = self.config.activation_bytes
-        if not activation_bytes:
-            activation_bytes = self._fetch_activation_bytes()
+            raise Exception('Unable to probe for metadata. Please ensure ffmpeg and ffprobe are installed and on the path.') from e
 
         return MetaData(
             author=self.config.author_override or author,
             title=self.config.title_override or title,
-            activation_bytes=activation_bytes,
+            activation_bytes=self.activation_bytes,
             chapters=chapters,
         )
-
-    def _fetch_activation_bytes(self) -> str:
-        """Fetch the activation bytes for the audible file"""
-        self.logger.info('Fetching activation bytes')
-
-        # Get the checksum
-        checksum = None
-        with open(self.config.input_file, 'rb') as f:
-            # Checksum is the bytes from 653->673
-            f.seek(653)
-            checksum = f.read(20).hex()
-
-        if checksum:
-            self.logger.debug('Calculated checksum \'{}\''.format(checksum))
-            return AudibleTools(logger=self.logger).get_activation_bytes(checksum)
-        else:
-            raise Exception('Could not find a checksum for \'{}\''.format(self.config.input_file))
 
     def _format_audio(self, meta: MetaData, outdir: str):
         self.logger.warn('Saving mp3s to {}'.format(outdir))
