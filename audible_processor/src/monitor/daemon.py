@@ -8,8 +8,10 @@ from typing import List
 from watchdog.events import RegexMatchingEventHandler
 from watchdog.observers import Observer
 
-from monitor.config import DaemonConfig
-from monitor.file_processor import file_processor
+from src import AudibleTools
+from .config import DaemonConfig
+from .file_processor import file_processor
+
 
 class ProcessPool:
     """Helper class to start multiple processes"""
@@ -36,18 +38,23 @@ class ProcessPool:
 class Daemon:
     """Class to monitor a directory and parse any files in it"""
     config: DaemonConfig
+    audible: AudibleTools
     logger: Logger
 
     _queue: mp.Queue
 
-    def __init__(self, config: DaemonConfig, logger: Logger) -> None:
+    def __init__(self, config: DaemonConfig, audible: AudibleTools, logger: Logger) -> None:
         self.config = config
+        self.audible = audible
         self.logger = logger
 
         self._queue = mp.Queue()
 
     def run(self, path: str):
         observer = processor = None
+
+        # Wait until an auth file exists before attempt to start
+        self._wait_for_auth()
 
         try:
             observer = self._start_file_observer(path)
@@ -92,6 +99,19 @@ class Daemon:
             self._queue.put(event.src_path)
 
         return on_create
+
+    def _wait_for_auth(self):
+        self.logger.debug('Validating auth exists')
+        try:
+            first = True
+            while self.audible.auth_file_exists() == None:
+                if first:
+                    self.logger.warning('Waiting for auth file to be created')
+                    first = False
+                time.sleep(1)
+        except KeyboardInterrupt:
+            self.logger.warning('stopping')
+            raise
 
     def _start_file_observer(self, path: str) -> Observer:
         event_handler = RegexMatchingEventHandler(

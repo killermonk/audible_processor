@@ -5,11 +5,11 @@ import os.path
 from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
-from parser.parser import Parser, ParserConfig
 from queue import Empty
 from typing import Any, Dict
 
-from monitor.config import DaemonConfig
+from src import AudibleTools, Parser, ParserConfig
+from .config import DaemonConfig
 
 STATE_FILE = '.books.ini'
 
@@ -89,6 +89,7 @@ def file_processor(config: DaemonConfig, queue: mp.Queue, lock: mp.Lock, log_lev
         basename = os.path.basename(file)
         prefix = str_truncate(basename, 10)
         sub_logger = LogPrefixAdapter('{}-'.format(prefix), logger)
+        audible = AudibleTools(config.output_dir, sub_logger)
 
         parser_config = ParserConfig(
             input_file=file,
@@ -102,7 +103,7 @@ def file_processor(config: DaemonConfig, queue: mp.Queue, lock: mp.Lock, log_lev
         )
 
         try:
-            Parser(config=parser_config, logger=sub_logger).run()
+            Parser(config=parser_config, audible=audible, logger=sub_logger).run()
             manager.update_state(file, status=FileStatus.PROCESSED, end_date=datetime.now())
         except Exception as e:
             logger.error(e)

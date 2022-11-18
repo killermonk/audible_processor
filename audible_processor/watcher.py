@@ -1,11 +1,9 @@
 import argparse
 import array
-import multiprocessing as mp
 import sys
 
 from helpers import get_logger
-from monitor.config import DaemonConfig
-from monitor.daemon import Daemon
+from src import AudibleTools, Daemon, DaemonConfig
 
 
 def main(prog: str, args: array):
@@ -17,9 +15,9 @@ def main(prog: str, args: array):
     parser.add_argument('--title-dir', default=True, action=argparse.BooleanOptionalAction,
         help='Whether or not to create a book title directory for the mp3 files')
     parser.add_argument('-b', '--activation-bytes',
-        help='The activation bytes used to decrypt audible DRM. Automatic probe if not passed.')
+        help='The activation bytes used to decrypt audible DRM (automatic probe if not passed)')
     parser.add_argument('-t', '--threads', default=1, type=int,
-        help='The number of processors.')
+        help='The number of processors')
     parser.add_argument('-v', '--verbose', default=0, action='count')
     parser.add_argument('path',
         help='The directory that we are going to monitor')
@@ -27,6 +25,7 @@ def main(prog: str, args: array):
     options = parser.parse_args(args)
 
     logger = get_logger(__name__, options.verbose)
+    audible = AudibleTools(options.out, logger)
 
     config = DaemonConfig(
         activation_bytes=options.activation_bytes,
@@ -37,7 +36,7 @@ def main(prog: str, args: array):
     )
 
     try:
-        Daemon(config=config, logger=logger).run(options.path)
+        Daemon(config=config, audible=audible, logger=logger).run(options.path)
     except Exception as e:
         logger.exception(e)
 

@@ -3,8 +3,8 @@ import logging
 import sys
 from array import array
 from glob import glob
-from parser.parser import Parser, ParserConfig
 
+from src import Parser, ParserConfig, AudibleTools
 from helpers import get_logger
 
 
@@ -28,7 +28,7 @@ def main(prog: str, args: array):
     parser.add_argument('-f', '--force', default=False, action='store_true',
         help='Force the parsing to continue if a recoverable error is encountered')
     parser.add_argument('-b', '--activation-bytes',
-        help='The activation bytes used to decrypt audible DRM. Automatic probe if not passed.')
+        help='The activation bytes used to decrypt audible DRM (automatic probe if not passed)')
     parser.add_argument('-v', '--verbose', default=0, action='count')
     parser.add_argument('file', nargs='+', action='extend',
         help='The file that we are going to convert')
@@ -36,6 +36,7 @@ def main(prog: str, args: array):
     options = parser.parse_args(args)
 
     logger = get_logger(__name__, options.verbose)
+    audible = AudibleTools(options.out, logger)
 
     for file in file_generator(options.file):
         config = ParserConfig(
@@ -50,7 +51,7 @@ def main(prog: str, args: array):
         )
 
         try:
-            Parser(config=config, logger=logger).run()
+            Parser(config=config, audible=audible, logger=logger).run()
         except Exception as e:
             if logger.isEnabledFor(logging.DEBUG):
                 logger.exception(e)
