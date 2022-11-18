@@ -6,7 +6,7 @@ For the local development the `in/` and `out/` directories are used. Please .aax
 ```docker build -t audible-processor .```
 
 2. Run the watcher using the following command:
-```docker run --rm --name audible-processor -v "${PWD}/in:/aax" -v "${PWD}/out:/mp3" audible-processor watch -vvv -o /mp3 /aax```
+```docker run --rm --name audible-processor -it -v "${PWD}/in:/aax" -v "${PWD}/out:/mp3" audible-processor watch -vvv -o /mp3 /aax```
 
 The watcher will now pause and poll for the auth file to exist before trying to do anything.
 
