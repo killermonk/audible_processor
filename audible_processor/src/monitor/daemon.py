@@ -101,17 +101,18 @@ class Daemon:
         return on_create
 
     def _wait_for_auth(self):
-        self.logger.debug('Validating auth exists')
-        try:
-            first = True
-            while self.audible.auth_file_exists() == None:
-                if first:
-                    self.logger.warning('Waiting for auth file to be created')
-                    first = False
-                time.sleep(1)
-        except KeyboardInterrupt:
-            self.logger.warning('stopping')
-            raise
+        if not self.config.activation_bytes:
+            self.logger.debug('Validating auth exists')
+            try:
+                first = True
+                while self.audible.auth_file_exists() == None:
+                    if first:
+                        self.logger.warning('Waiting for auth file to be created')
+                        first = False
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                self.logger.warning('stopping')
+                raise
 
     def _start_file_observer(self, path: str) -> Observer:
         event_handler = RegexMatchingEventHandler(
