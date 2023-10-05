@@ -1,6 +1,10 @@
-FROM ivanlee/ffmpeg-python
+FROM linuxserver/ffmpeg:latest AS deps
 
-RUN mkdir /app
+RUN apt-get update && apt-get install -y python3 python3-pip
+RUN pip install ffmpeg-python
+
+FROM deps AS app
+
 WORKDIR /app
 COPY requirements.txt *.sh ./
 COPY audible_processor ./audible_processor/
@@ -15,4 +19,5 @@ RUN ln -s /app/watch.sh /usr/local/bin/watch
 # /mp3 - volume where we output the processed mp3 files
 VOLUME [ "/aax", "/mp3" ]
 
+ENTRYPOINT [ "/app/run.sh" ]
 CMD [ "/app/watch.sh", "-o", "/mp3", "/aax" ]
