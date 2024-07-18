@@ -3,9 +3,10 @@ FROM ivanlee/ffmpeg-python
 RUN mkdir /app
 WORKDIR /app
 COPY requirements.txt *.sh ./
+RUN pip install -r requirements.txt
+
 COPY audible_processor ./audible_processor/
 
-RUN pip install -r requirements.txt
 RUN chmod +x *.sh
 RUN ln -s /app/auth.sh /usr/local/bin/auth
 RUN ln -s /app/process.sh /usr/local/bin/process

@@ -5,7 +5,7 @@ from logging import Logger
 from os import walk
 from typing import List
 
-from watchdog.events import RegexMatchingEventHandler
+from watchdog.events import RegexMatchingEventHandler, LoggingEventHandler
 from watchdog.observers import Observer
 
 from src import AudibleTools
@@ -34,6 +34,29 @@ class ProcessPool:
 
     def is_alive(self):
         return all(p.is_alive() for p in self._pool)
+
+class AudibleFileWatcher(RegexMatchingEventHandler):
+    def __init__(self, queue: mp.Queue, logger: Logger) -> None:
+        super().__init__(regexes=['^.*\.aax$'], ignore_regexes=[], ignore_directories=True, case_sensitive=False)
+
+        self.queue = queue
+        self.logger = logger
+
+    def on_create(self, event):
+        self.logger.info('monitoring \'{}\' for steady state'.format(event.src_path))
+
+        new_size = os.path.getsize(event.src_path)
+        while True:
+            old_size = new_size
+            time.sleep(5)
+            new_size = os.path.getsize(event.src_path)
+
+            if old_size == new_size:
+                self.logger.info('monitoring \'{}\' finished'.format(event.src_path))
+                break
+
+        self.queue.put(event.src_path)
+
 
 class Daemon:
     """Class to monitor a directory and parse any files in it"""
@@ -66,12 +89,14 @@ class Daemon:
             while True:
                 time.sleep(1)
 
-                # If either process has die, terminate
+                # If either process has died, terminate
                 if not observer.is_alive() or not processor.is_alive():
+                    self.logger.info('Observer or processor died, stopping')
                     break
         except KeyboardInterrupt:
             self.logger.info('stopping')
         finally:
+            self.logger.info('shutting down')
             # Kill sub processes and wait until they stop
             if observer and observer.is_alive():
                 observer.stop()
@@ -115,17 +140,19 @@ class Daemon:
                 raise
 
     def _start_file_observer(self, path: str) -> Observer:
-        event_handler = RegexMatchingEventHandler(
-            regexes=['^.*\.aax$'],
-            ignore_regexes=[],
-            ignore_directories=True,
-            case_sensitive=False,
-        )
+        # event_handler = RegexMatchingEventHandler(
+        #     regexes=['^.*\.aax$'],
+        #     ignore_regexes=[],
+        #     ignore_directories=True,
+        #     case_sensitive=False,
+        # )
 
-        event_handler.on_created = self._get_on_create_handler()
+        # event_handler.on_created = self._get_on_create_handler()
 
         observer = Observer()
-        observer.schedule(event_handler, path, recursive=True)
+        observer.schedule(LoggingEventHandler(self.logger), path, recursive=True)
+        # observer.schedule(event_handler, path, recursive=True)
+        # observer.schedule(AudibleFileWatcher(self._queue, self.logger), path, recursive=True)
 
         self.logger.info('watching \'{}\''.format(path))
         observer.start()
