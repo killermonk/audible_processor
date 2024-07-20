@@ -1,2 +1,2 @@
 #!/bin/sh
-python3 audible_processor/watcher.py "$@"
+python3.11 audible_processor/watcher.py "$@"

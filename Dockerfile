@@ -1,13 +1,19 @@
 FROM linuxserver/ffmpeg:latest AS deps
 
-RUN apt-get update && apt-get install -y python3 python3-pip
-RUN pip install ffmpeg-python
+RUN apt-get update && apt-get install -y software-properties-common
+# Package python3 gives us python 3.12, but the audible package requires python <3.12
+# So we need to manually install 3.11 from deadsnakes, then bootstrap pip for it
+RUN add-apt-repository ppa:deadsnakes/ppa -y
+RUN apt-get update && apt-get install -y python3.11
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+RUN pip3.11 install --break-system-packages ffmpeg-python
+
 
 FROM deps AS app
 
 WORKDIR /app
 COPY requirements.txt *.sh ./
-RUN pip install -r requirements.txt
+RUN pip3.11 install -r requirements.txt
 
 COPY audible_processor ./audible_processor/
 

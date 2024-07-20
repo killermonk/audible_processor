@@ -127,7 +127,7 @@ class Daemon:
 
         event_handler.on_created = self._get_on_create_handler()
 
-        observer = PollingObserver()
+        observer = PollingObserver(timeout=self.config.interval)
         observer.schedule(event_handler, path, recursive=True)
 
         self.logger.info('watching \'{}\''.format(path))

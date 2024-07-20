@@ -1,5 +1,6 @@
 import argparse
 import array
+import os
 import sys
 
 from env import Vars, envDefault
@@ -19,6 +20,8 @@ def main(prog: str, args: array):
         help='The activation bytes used to decrypt audible DRM (automatic probe if not passed)')
     parser.add_argument('-t', '--threads', default=envDefault(Vars.THREADS, 1), type=int,
         help='The number of processors')
+    parser.add_argument('-i', '--interval', default=envDefault(Vars.INTERVAL, 5), type=int,
+        help='The interval in seconds to check for new files')
     parser.add_argument('-v', '--verbose', default=envDefault(Vars.VERBOSITY, 0), action='count')
     parser.add_argument('path', default=envDefault(Vars.INPUT_DIR, ''),
         help='The directory that we are going to monitor')
@@ -37,6 +40,7 @@ def main(prog: str, args: array):
         output_dir=options.out,
         create_author_dir=options.author_dir,
         create_title_dir=options.title_dir,
+        interval=options.interval,
         threads=options.threads,
     )
 

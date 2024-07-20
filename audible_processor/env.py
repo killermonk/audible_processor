@@ -8,6 +8,7 @@ class Vars:
     INPUT_DIR = 'INPUT_DIR'
     THREADS = 'THREADS'
     ACTIVATION_BYTES = 'ACTIVATION_BYTES'
+    INTERVAL = 'INTERVAL'
     VERBOSITY = 'VERBOSITY'
 
 def _cast_bool(name: str, value: Any) -> bool:
@@ -25,14 +26,14 @@ def _cast_bool(name: str, value: Any) -> bool:
 def _cast_int(name: str, value: Any) -> int:
     if type(value) == int:
         return value
-    
+
     try:
         return int(value)
     except ValueError as e:
         raise ValueError(f'Invalid numeric value `{value}` for variable `{name}`')
 
 def envDefault(name: str, default_value: Any = None) -> Any:
-    value: str = os.getenv(name, None)
+    value: str | None = os.getenv(name, None)
     if value is None:
         if default_value is None:
             raise ValueError(f'Variable `{name}` not set')
