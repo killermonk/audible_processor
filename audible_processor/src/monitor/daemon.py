@@ -119,7 +119,7 @@ class Daemon:
 
     def _start_file_observer(self, path: str) -> Observer:
         event_handler = RegexMatchingEventHandler(
-            regexes=['^.*\.aax$'],
+            regexes=[r'^.*\.aax$'],
             ignore_regexes=[],
             ignore_directories=True,
             case_sensitive=False,
