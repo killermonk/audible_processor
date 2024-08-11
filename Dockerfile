@@ -7,7 +7,7 @@ RUN pip3 install --break-system-packages ffmpeg-python
 # Clean up apt files
 RUN apt-get clean && apt-get autoclean
 RUN apt-get autoremove -y
-RUN rm -rf /var/lib/{apt,dpkg,cache,log}/
+
 
 FROM deps AS app-deps
 
@@ -15,11 +15,12 @@ WORKDIR /app
 COPY requirements.txt *.sh ./
 RUN pip3 install --break-system-packages -r requirements.txt
 
-# Clean up pip cache
+# Clean up pip cache and extra depedencies
 RUN pip3 cache purge
 RUN apt-get remove -y python3-pip git
 RUN apt-get clean && apt-get autoclean
 RUN apt-get autoremove -y
+
 
 FROM app-deps AS app
 
