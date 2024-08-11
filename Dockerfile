@@ -8,12 +8,19 @@ RUN apt-get update && apt-get install -y python3.11
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
 RUN pip3.11 install --break-system-packages ffmpeg-python
 
+# Clean up apt files
+RUN apt-get clean autoclean
+RUN apt-get autoremove -y
+RUN rm -rf /var/lib/{apt,dpkg,cache,log}/
 
 FROM deps AS app
 
 WORKDIR /app
 COPY requirements.txt *.sh ./
-RUN pip3.11 install -r requirements.txt
+RUN pip3.11 install --break-system-packages -r requirements.txt
+
+# Clean up pip cache
+RUN pip3.11 cache purge
 
 COPY audible_processor ./audible_processor/
 
