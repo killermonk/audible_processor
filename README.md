@@ -39,3 +39,18 @@ docker push drductus/audible-processor:latest
 ```
 
 5. Update the pub README with any additional instructions
+
+## Build on K8S
+
+1. Ensure that the kube config (usually ~/.kube/config) is accessible and that the path is found in the $KUBECONFIG env variable
+
+2. Create the builder namespace
+```kubectl create namespace buildkit```
+
+3. Create the builder instances for amd64 and arm64
+```docker buildx create --bootstrap --name=kube --driver=kubernetes --platform=linux/amd64 --node=builder-amd64 --driver-opt=namespace=buildkit,nodeselector="kubernetes.io/arch=amd64"```
+```docker buildx create --append --bootstrap --name=kube --driver=kubernetes --platform=linux/arm64 --node=builder-arm64 --driver-opt=namespace=buildkit,nodeselector="kubernetes.io/arch=arm64"```
+
+4. Run the actual build
+MAKE SURE TO UPDATE THE VERSION TAG!
+```docker buildx build --builder=kube --platform=linux/amd64,linux/arm64 -t drductus/audible-processor:latest -t drductus/audible-processor:vx.x.x --push .```
