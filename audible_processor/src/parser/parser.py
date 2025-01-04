@@ -60,7 +60,7 @@ class Parser:
     audible: AudibleTools
 
     def run(self):
-        self.logger.warn('Processing %s...', self.config.input_file)
+        self.logger.warning('Processing %s...', self.config.input_file)
 
         self._validate_activation_bytes()
         self._validate_input_file()
@@ -71,9 +71,10 @@ class Parser:
         self._format_audio(meta, output_dir)
 
     def _validate_activation_bytes(self):
-        self.activation_bytes = self.config.activation_bytes or self.audible.get_activation_bytes()
-        if self.activation_bytes is None:
+        activation_bytes = self.config.activation_bytes or self.audible.get_activation_bytes()
+        if activation_bytes is None:
             raise Exception('Activation bytes not found')
+        self.activation_bytes = [b.strip() for b in activation_bytes.split(',')]
 
     def _validate_input_file(self):
         """Validate that the input file is valid"""
@@ -139,36 +140,58 @@ class Parser:
         """Probe for the metadata of the file"""
         self.logger.info('Probing meta data')
 
-        try:
-            info = ffmpeg.probe(self.config.input_file, show_chapters=None)
+        activation_bytes = None
+        for _activation_bytes in self.activation_bytes:
+            try:
+                info = ffmpeg.probe(self.config.input_file, show_chapters=None, activation_bytes=_activation_bytes)
 
-            format = (info['format']['tags']['major_brand'] or _get_file_ext(self.config.input_file)).strip()
-            self.logger.debug('Probed format %s', format)
+                format = (info['format']['tags']['major_brand'] or _get_file_ext(self.config.input_file)).strip()
+                self.logger.debug('Probed format %s', format)
 
-            title = info['format']['tags']['title'] or info['format']['tags']['album'] or _get_file_name(self.config.input_file)
-            self.logger.debug('Probed title %s', title)
+                title = info['format']['tags']['title'] or info['format']['tags']['album'] or _get_file_name(self.config.input_file)
+                self.logger.debug('Probed title %s', title)
 
-            author = info['format']['tags']['artist'] or info['format']['tags']['album_artist'] or 'Unknown'
-            self.logger.debug('Probed author %s', author)
+                author = info['format']['tags']['artist'] or info['format']['tags']['album_artist'] or 'Unknown'
+                self.logger.debug('Probed author %s', author)
 
-            raw_chapters = info['chapters'] or []
-            chapters = [Chapter.from_probe(c) for c in raw_chapters]
-            self.logger.debug('Probed %d chapters', len(chapters))
-        except Exception as e:
-            if self.logger.isEnabledFor(logging.DEBUG):
-                self.logger.exception(e)
+                raw_chapters = info['chapters'] or []
+                chapters = [Chapter.from_probe(c) for c in raw_chapters]
+                self.logger.debug('Probed %d chapters', len(chapters))
 
-            raise Exception('Unable to probe for metadata. Please ensure ffmpeg and ffprobe are installed and on the path.') from e
+                # Success, exit with these bytes
+                activation_bytes = _activation_bytes
+                break
+            except Exception as e:
+                if self.logger.isEnabledFor(logging.DEBUG):
+                    self.logger.exception(e)
+
+                # Binaries not found
+                if type(e) == FileNotFoundError:
+                    raise Exception('Unable to probe for metadata. Please ensure ffmpeg and ffprobe are installed and on the path.') from e
+                # ffmpeg error
+                elif type(e) == ffmpeg.Error:
+                    stderr = str(e.stderr).lower()
+                    # Invalid Activation Bytes, try again
+                    if 'mismatch in checksums' in stderr:
+                        continue
+
+                    raise Exception('Unable to probe for metadata. Error running ffprobe.') from e
+                # Other Error
+                else:
+                    raise Exception('Unable to probe for metadata. Error running ffprobe.') from e
+
+        if activation_bytes is None:
+            raise Exception('Unable to find valid activation bytes for decoding file.')
 
         return MetaData(
             author=self.config.author_override or author,
             title=self.config.title_override or title,
-            activation_bytes=self.activation_bytes,
+            activation_bytes=activation_bytes,
             chapters=chapters,
         )
 
     def _format_audio(self, meta: MetaData, outdir: str):
-        self.logger.warn('Saving mp3s to {}'.format(outdir))
+        self.logger.warning('Saving mp3s to {}'.format(outdir))
 
         capture_output = False if self.logger.isEnabledFor(logging.DEBUG) else True
 
@@ -191,7 +214,7 @@ class Parser:
 
         for num, chapter in enumerate(meta.chapters):
             track = num+1
-            self.logger.warn('Processing chapter \'{}\' ({} of {})'.format(chapter.title, track, num_chapters))
+            self.logger.warning('Processing chapter \'{}\' ({} of {})'.format(chapter.title, track, num_chapters))
 
             filename = '{} - {}.mp3'.format(str(track).rjust(padding, '0'), chapter.title)
 
@@ -224,4 +247,4 @@ class Parser:
                     .run(capture_stdout=capture_output, capture_stderr=capture_output)
             )
 
-        self.logger.warn('Done')
+        self.logger.warning('Done')
